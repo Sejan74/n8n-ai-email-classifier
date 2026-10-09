@@ -1,0 +1,290 @@
+{
+  "name": "AI Email Classifier ai agent",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "readStatus": "unread"
+        },
+        "options": {}
+      },
+      "id": "e60e05f5-cbd7-4d71-b7e7-936d3a425439",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        112
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "chr9aSF221Dr2jz0",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Classify this email into exactly one category: Work, Personal, Important, or Spam. Return only the category name.\n\nFrom: {{ $json.from.text }}\nSubject: {{ $json.subject }}\nBody: {{ $json.text }}",
+        "batching": {}
+      },
+      "id": "430e7ce4-37e1-42a0-8bfe-0f5417e1e388",
+      "name": "Classify Email",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        320,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "06a34c8d-42db-46fd-914e-66c04ae3d593",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        304
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "Gateway credits",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "https://docs.google.com/document/d/1dNdOCw3KsHhDzPFC41H31nr5PvhVnCzuA8BYHjYcjzE/edit?tab=t.0",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "=Date: {{ $(\"Gmail Trigger\").item.json.date }}\nSender: {{ $(\"Gmail Trigger\").item.json.from.text }}\nSubject: {{ $(\"Gmail Trigger\").item.json.subject }}\nCategory: {{ $json.text }}\n\n"
+            }
+          ]
+        }
+      },
+      "id": "c04ac381-dc37-46b4-8ec0-a18b83fcbf8f",
+      "name": "Save to Google Docs",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        624,
+        144
+      ],
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "Wej4wFANbYDO7PkL",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an automatic email reply assistant.\n\nRead every incoming email carefully, including the subject and the full message.\n\nUnderstand what the sender wants and create an appropriate reply.\n\nIf the sender says Hi, Hello, or sends a simple greeting, reply with a friendly welcome message.\n\nIf the sender asks a question, answer it politely and helpfully.\n\nIf the sender asks for information, provide a useful response.\n\nIf the sender has a complaint, acknowledge the problem and respond professionally.\n\nIf the email is spam, phishing, advertising, or suspicious, do not reply. Return exactly: NO_REPLY\n\nAlways keep the reply short, polite, friendly, and professional.\n\nDo not mention that you are an AI.\nDo not explain your reasoning.\nDo not ask what the user wants you to do.\nReturn only the reply message that should be sent to the email sender.\n\nSubject:\n{{ $json.subject }}\n\nSender:\n{{ $json.from.text }}\n\nMessage:\n{{ $json.text }}",
+        "batching": {}
+      },
+      "id": "86a9dee5-f0a8-47b9-b160-9ab75da59034",
+      "name": "Generate Reply",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        256,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "6bcce0ee-7ba1-4e99-8eb5-aeb9c9c8b60c",
+      "name": "Reply Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        336,
+        800
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "Gateway credits",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "no-reply-check",
+              "leftValue": "={{ $json.text }}",
+              "rightValue": "NO_REPLY",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2991a9aa-9163-4d9f-a9ab-59e8b73f82d0",
+      "name": "Should Reply?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        608,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{ $(\"Gmail Trigger\").item.json.id }}",
+        "emailType": "text",
+        "message": "={{ $(\"Generate Reply\").item.json.text }}",
+        "options": {
+          "replyToSenderOnly": true
+        }
+      },
+      "id": "514e31f9-ceb4-4df7-9baa-59b01d92d766",
+      "name": "Send Reply",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        832,
+        576
+      ],
+      "webhookId": "a9a5aada-da3d-4565-95b8-85f3469c5e5e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "chr9aSF221Dr2jz0",
+          "name": "Gmail account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Classify Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Email": {
+      "main": [
+        [
+          {
+            "node": "Save to Google Docs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Classify Email",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Reply": {
+      "main": [
+        [
+          {
+            "node": "Should Reply?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Reply",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Reply?": {
+      "main": [
+        [
+          {
+            "node": "Send Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "528dbe91-61bb-4999-bcdb-1dc696ced8e5",
+  "meta": {
+    "instanceId": "46787c09ab48a23b52e1fa67a71cb999a88f0d51d456e154057ace8e0d94a1b4"
+  },
+  "nodeGroups": [],
+  "id": "XivWACyvlZkC6SKZ",
+  "tags": []
+}
